@@ -55,7 +55,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 .caret{transition:transform .2s;color:var(--mut);font-size:12px}
 .card.open .caret{transform:rotate(180deg)}
 .body{max-height:0;overflow:hidden;transition:max-height .25s ease}
-.card.open .body{max-height:6000px}
+.card.open .body{max-height:60000px}
 .body-in{padding-top:12px}
 
 input[type=text],input[type=number],input[type=time],input[type=date],select,textarea{width:100%;background:var(--inp);border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;outline:none;min-height:40px}
@@ -149,6 +149,19 @@ label.f>span.l{display:block;margin-bottom:4px}
 .empty{font-size:12.5px;color:var(--mut);font-style:italic;margin:4px 0}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(30px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:99px;font-weight:600;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:50}
 .toast.on{opacity:1;transform:translateX(-50%)}
+.item .tfoto{display:none;margin-top:8px}
+.item[data-s=si] .tfoto{display:block}
+.tfoto .tl{display:block;font-size:12px;font-weight:700;color:var(--mut);margin-bottom:6px}
+.tfoto.miss{border:1.5px solid var(--bad);border-radius:10px;padding:8px}
+.tfoto img{display:block;max-width:150px;max-height:150px;border-radius:10px;border:1px solid var(--line);margin-bottom:7px;object-fit:cover}
+.sqty select{width:100%;background:var(--inp);border:1.5px solid var(--line);border-radius:10px;padding:6px 10px;min-height:34px;font-size:12.5px}
+.sline{border:1px dashed var(--line);border-radius:10px;padding:8px;margin-bottom:7px}
+.sline .g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:7px}
+.sline .l{font-size:11px}
+.mseg{display:inline-flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:8px}
+.mseg button{border:0;background:var(--card);padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;color:var(--mut)}
+.mseg button.on{background:var(--teal);color:#fff}
+.sbtn{padding:6px 11px!important;font-size:12px!important}
 </style>
 </head>
 <body>
@@ -207,11 +220,10 @@ label.f>span.l{display:block;margin-bottom:4px}
 
   <div class="card" id="c-limp">
     <div class="sec-h" data-toggle="c-limp"><div class="num">4</div><h2>Guía de limpieza</h2><span class="badge" id="limpBadge">—</span><span class="caret">▾</span></div>
-    <div class="sub">Elige tu puesto de hoy y marca lo que ya hiciste.</div>
+    <div class="sub">Elige tu puesto de hoy y marca lo que hiciste. Cada tarea que marques "Sí" necesita su propia foto.</div>
     <div class="body"><div class="body-in">
       <label class="f"><span class="l">Tu puesto hoy</span><select id="limpRole"></select></label>
       <div id="limpBody" style="margin-top:6px"></div>
-      <div id="limpFotoBox" style="display:none;margin-top:10px"></div>
       <button class="btn ghost" type="button" id="toggleCal" style="margin-top:12px">Ver calendario completo</button>
       <div id="calBox" class="calwrap" style="display:none;margin-top:10px"></div>
     </div></div>
@@ -228,7 +240,7 @@ label.f>span.l{display:block;margin-bottom:4px}
 
   <div class="card" id="c-stock">
     <div class="sec-h" data-toggle="c-stock"><div class="num">6</div><h2>Requerimiento de stock</h2><span class="badge" id="stockBadge">0</span><span class="caret">▾</span></div>
-    <div class="sub">Toca lo que falta y anota cuánto quieres pedir.</div>
+    <div class="sub">Toca lo que falta y anota cuánto quieres pedir. Si hay varios tipos o tamaños, agrégalos por separado.</div>
     <div class="body"><div class="body-in">
       <div class="stockTop">
         <input type="text" id="stockSearch" placeholder="Buscar producto...">
@@ -242,6 +254,7 @@ label.f>span.l{display:block;margin-bottom:4px}
         <option value="Unidades"><option value="Kg"><option value="g"><option value="L"><option value="ml">
         <option value="Paquete"><option value="Caja"><option value="Bolsa"><option value="Botella">
         <option value="Docena"><option value="Molde"><option value="Lata">
+        <option value="Frasco"><option value="Galón"><option value="Sobre"><option value="Rollo"><option value="Bidón">
       </datalist>
     </div></div>
   </div>
@@ -304,40 +317,64 @@ const LIMPIEZA={
     ['Baño','Ventana'],['Baño','Paredes','Techo','Sillas'],['Baño','Ventana'],
     ['Baño','Paredes','Techo','Sillas']]
 };
+const OTRO='Otro (especificar)';
+// Config opcional por producto (3er valor):
+//  o:[opciones] + ol:'etiqueta'  -> lista para elegir tipo/contenido (siempre se agrega "Otro")
+//  z:'ejemplo'                   -> pregunta si es 1 solo tamaño o varios tamaños
+//  e:'etiqueta' (+ er:true)      -> campo de especificación (sabor, tipo...), obligatorio si er
+const CONT=['Con contenido (llena)','Sin contenido (vacía)','Solo tapas'];
 const STOCK=[
  {cat:'Bandejas / Stock general',items:[
-   ['Agua','A tope'],['Gaseosa Inka Kola','1 menos'],['Gaseosa Coca Kola','1 menos'],
+   ['Agua','A tope',{z:'Ej: 625 ml, 2.5 L'}],
+   ['Gaseosa Inka Kola','1 menos'],['Gaseosa Coca Kola','1 menos'],
    ['Gaseosa 1.5 L Inka Kola','4 c/u'],['Gaseosa 1.5 L Coca Kola','4 c/u'],['Pepsi 700 ml','7 a 8 u.'],
-   ['Botella 300 ml','1 llena + tapas'],['Botella 600 ml','1 llena + tapas'],['Papas al hilo','1 llena'],
-   ['Kétchup','2'],['Mostaza','2'],['Vasos de frappé','1 entero + tapas, stickers'],['Vasos de mate','1 entero + tapas'],
-   ['Vasos de promoción','1 entero'],['Cremero pequeño','2 de cada uno + tapas'],['Bolsa para servilletas','1 entera'],
-   ['Cuchara descartable','1'],['Tenedor descartable','1'],['Durazno en lata','2'],['Piña en lata','2'],
+   ['Botella 300 ml','1 llena + tapas',{o:CONT,ol:'Contenido'}],
+   ['Botella 600 ml','1 llena + tapas',{o:CONT,ol:'Contenido'}],
+   ['Papas al hilo','1 llena',{z:'Ej: 500 g, 1 kg'}],
+   ['Kétchup','2',{z:'Ej: frasco, bolsa 1 kg'}],['Mostaza','2',{z:'Ej: frasco, bolsa 1 kg'}],
+   ['Vasos de frappé','1 entero + tapas, stickers',{o:['Vasos','Tapas','Stickers'],ol:'¿Qué pides?',z:'Ej: 12 oz, 16 oz'}],
+   ['Vasos de mate','1 entero + tapas',{o:['Vasos','Tapas'],ol:'¿Qué pides?',z:'Ej: 8 oz'}],
+   ['Vasos de promoción','1 entero',{z:'Ej: 12 oz'}],
+   ['Cremero pequeño','2 de cada uno + tapas',{o:['Cremero','Tapa'],ol:'¿Qué pides?',z:'Ej: 2 oz, 4 oz'}],
+   ['Bolsa para servilletas','1 entera',{z:'Ej: chica, mediana, grande'}],
+   ['Cuchara descartable','1',{z:'Ej: grande, pequeña'}],['Tenedor descartable','1',{z:'Ej: grande, pequeño'}],
+   ['Durazno en lata','2',{z:'Ej: lata grande, lata pequeña'}],['Piña en lata','2',{z:'Ej: lata grande, lata pequeña'}],
    ['Sorbetes delgados','2'],['Sorbetes gruesos','2']]},
  {cat:'Refrigerador',items:[
    ['Queso Edam','2 siempre'],['Queso cheddar','2 (sábado 3)'],['Jamón','2'],['Arándano','Subir si jarra está a 1/4'],
-   ['Mermelada','Subir si taper está a 1/4'],['Tortilla','2'],['Tocino','2'],['Chantilly líquido','1 cuando no hay'],
-   ['Hamburguesas de carne','2 siempre'],['BBQ','Llenar si está a 1/4'],['Piña congelada','8'],['Papaya congelada','8'],
-   ['Fresa congelada','8'],['Hielo','8 moldes llenos'],['Bolsa de hielo','1 llena'],['Cecina','6 (L–J) / 8 (S–D)'],
+   ['Mermelada','Subir si taper está a 1/4',{e:'Sabor (ej. fresa, piña)',er:true}],
+   ['Tortilla','2'],['Tocino','2'],['Chantilly líquido','1 cuando no hay'],
+   ['Hamburguesas de carne','2 siempre'],['BBQ','Llenar si está a 1/4'],
+   ['Fruta congelada','8 de cada fruta',{o:['Piña','Papaya','Fresa','Mango','Arándano'],ol:'¿Qué fruta?'}],
+   ['Hielo','8 moldes llenos'],['Bolsa de hielo','1 llena',{z:'Ej: 2 kg, 5 kg'}],['Cecina','6 (L–J) / 8 (S–D)'],
    ['Cabanosi','7 a 8'],['Franfood','8'],['Chorizo español','8']]},
- {cat:'Congeladora',items:[['Hamburguesa de carne','2']]},
+ {cat:'Congeladora',items:[['Hamburguesas de pollo','2']]},
  {cat:'Verduras',items:[
-   ['Lechuga orgánica','3 (L–J) / 4 (V–D)'],['Plátanos','5 (L–J) / 6 (S–D)'],['Azúcar rubia y blanca','Revisar y rellenar'],
+   ['Lechuga orgánica','3 (L–J) / 4 (V–D)'],['Plátanos','5 (L–J) / 6 (S–D)'],
+   ['Azúcar','Revisar y rellenar',{o:['Azúcar rubia','Azúcar blanca'],ol:'¿Cuál azúcar?'}],
    ['Limón','2 bolsas llenas'],['Naranja','30 unidades']]},
  {cat:'Limpieza / Servicio / Empaque',items:[
-   ['Detergente','Lleno siempre'],['Leguas','2 a 3'],['Ayudín','1 siempre'],['Servilletas','3 a 4'],
-   ['Bolsas para empaque','Revisar y subir paquetes']]},
+   ['Detergente','Lleno siempre',{z:'Ej: 500 g, 1 kg'}],['Leguas','2 a 3'],['Ayudín','1 siempre',{z:'Ej: 360 g, 700 g'}],
+   ['Servilletas','3 a 4',{z:'Ej: paquete chico, paquete grande'}],
+   ['Bolsas para empaque','Revisar y subir paquetes',{z:'Ej: chica, mediana, grande',e:'Tipo de bolsa (papel, plástico...)',er:true}]]},
  {cat:'Barra',items:[
-   ['Café','Revisar'],['Galleta Oreo','4'],['Pisco','Por encima de la mitad'],['Jarabe de goma','Por encima de la mitad'],
-   ['Jarabe de granadina','Por encima de la mitad'],['Fudge','Lleno siempre'],['Everess','Por encima de la mitad'],
-   ['Jarabe de fresa','Por encima de la mitad'],['Leche entera','5'],['Infusiones','Llenas o mitad'],
-   ['Barquillo','Lleno siempre'],['Mashmello','Lleno siempre'],['Milo','Lleno o mitad'],['Dopins','Llenos o mitad'],
-   ['Tapers de papa','1 de uso + 2 de reserva'],['Salchipapa','1 y 2'],['Brother','2'],['Contrómetro','2'],
+   ['Café','Revisar',{e:'Tipo (grano, molido...)'}],['Galleta Oreo','4'],['Pisco','Por encima de la mitad'],
+   ['Jarabe de goma','Por encima de la mitad'],['Jarabe de granadina','Por encima de la mitad'],['Fudge','Lleno siempre'],
+   ['Everess','Por encima de la mitad'],['Jarabe de fresa','Por encima de la mitad'],['Leche entera','5'],
+   ['Infusiones','Llenas o mitad',{e:'¿Qué infusión?',er:true}],
+   ['Barquillo','Lleno siempre'],['Mashmello','Lleno siempre'],['Milo','Lleno o mitad'],
+   ['Dopins','Llenos o mitad',{e:'Sabor / color',er:true}],
+   ['Tapers de papa','1 de uso + 2 de reserva',{o:['Taper de uso','Taper de reserva'],ol:'¿Cuál?',z:'Ej: chico, grande'}],
+   ['Salchipapa','1 y 2',{z:'Ej: chico, grande'}],['Brother','2'],['Contrómetro','2'],
    ['Grapas','1 caja llena'],['Ligas','1 caja llena'],['Azúcar para llevar','Llena siempre']]},
  {cat:'Harina / Panes / Insumos',items:[
-   ['Harina y chuño','Preguntar si necesita'],['Pan molde','Por encima de la mitad'],['Mantequilla','Preguntar si necesita'],
-   ['Plancha entera de huevo','1'],['Papel manteca','Revisar'],['Papel toalla de cocina','Revisar'],
+   ['Harina / chuño','Preguntar si necesita',{o:['Harina','Chuño'],ol:'¿Cuál?'}],['Pan molde','Por encima de la mitad'],
+   ['Mantequilla','Preguntar si necesita',{z:'Ej: 200 g, 1 kg'}],
+   ['Plancha entera de huevo','1'],['Papel manteca','Revisar',{z:'Ej: rollo chico, rollo grande'}],
+   ['Papel toalla de cocina','Revisar',{z:'Ej: rollo chico, rollo grande'}],
    ['Palito de bambú','2 paquetes'],['Pan de hamburguesa','17–18 (L–J) / 19–20 (fin de sem.)'],
-   ['Vasos de BBQ / papas al hilo','1 paquete con tapa'],['Vasos para ensalada','1 paquete']]}
+   ['Vasos de BBQ / papas al hilo','1 paquete con tapa',{o:['Vasos de BBQ','Vasos de papas al hilo','Tapas'],ol:'¿Qué pides?',z:'Ej: 2 oz, 4 oz'}],
+   ['Vasos para ensalada','1 paquete',{z:'Ej: 12 oz, 16 oz'}]]}
 ];
 
 const KEY='zampa_forms_v1', HKEY='zampa_forms_hist_v1';
@@ -353,7 +390,7 @@ const fresh=()=>({
   m:{fecha:today(),nombre:'',hora:''},
   apertura:{monto:'',foto:''},
   incidencias:[],errores:[],
-  limp:{role:ROLES[0],estado:{},motivo:{},foto:''},
+  limp:{role:ROLES[0],estado:{},motivo:{},fotos:{}},
   necesidades:[],stock:{},stockQty:{},
   firma:''
 });
@@ -370,13 +407,14 @@ function load(){
       Object.assign(S.limp,p.limp||{});
       S.limp.estado=Object.assign({},(p.limp&&p.limp.estado)||{});
       S.limp.motivo=Object.assign({},(p.limp&&p.limp.motivo)||{});
+      S.limp.fotos=Object.assign({},(p.limp&&p.limp.fotos)||{});delete S.limp.foto;
       S.necesidades=p.necesidades||[];
       S.stock=p.stock||{};S.stockQty=p.stockQty||{};
       S.firma=p.firma||'';
     }
   }catch(e){}
 }
-let st;function save(){clearTimeout(st);st=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}},250)}
+let st;function save(){clearTimeout(st);st=setTimeout(()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Memoria del dispositivo llena: no se pudo guardar el borrador')}},250)}
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('on'),2200)}
 function totalGastos(){return 0}
 function dayIdx(dateStr){
@@ -385,31 +423,60 @@ function dayIdx(dateStr){
   if(isNaN(d))return null;
   return (d.getDay()+6)%7;
 }
-function getStockQty(key){
-  const so=S.stockQty[key];
-  if(!so)return{cant:'',unid:''};
-  if(typeof so==='string')return{cant:so,unid:''};
-  return{cant:so.cant||'',unid:so.unid||''};
+const newLine=()=>({o:'',x:'',z:'',e:'',cant:'',unid:''});
+function sItem(key){const[a,b]=key.split('_');return STOCK[a].items[b]}
+function sCfg(key){return sItem(key)[2]||{}}
+function getSQ(key){
+  let so=S.stockQty[key];
+  if(!so||!Array.isArray(so.lines)){
+    const old=(typeof so==='string')?{cant:so,unid:''}:(so||{});
+    so={modo:'uno',lines:[Object.assign(newLine(),{cant:old.cant||'',unid:old.unid||''})]};
+    S.stockQty[key]=so;
+  }
+  return so;
 }
-function setStockQty(key,field,value){
-  const cur=getStockQty(key);cur[field]=value;S.stockQty[key]=cur;
+function renderSQ(key){
+  const row=$(`.srow[data-key="${key}"]`);if(!row)return;
+  const box=$('.sqty',row),cfg=sCfg(key),q=getSQ(key);
+  const canMulti=!!cfg.o||(cfg.z&&q.modo==='varios');
+  let h='';
+  if(cfg.z)h+=`<div class="mseg"><button type="button" data-smodo="${key}|uno" class="${q.modo==='uno'?'on':''}">1 solo tamaño</button><button type="button" data-smodo="${key}|varios" class="${q.modo==='varios'?'on':''}">Varios tamaños</button></div>`;
+  h+=q.lines.map((ln,i)=>{
+    const id=`${key}|${i}`;
+    return `<div class="sline"><div class="g3">`+
+      (cfg.o?`<label class="f"><span class="l">${esc(cfg.ol||'¿Cuál?')} *</span><select data-sl="${id}|o"><option value="">Elegir...</option>${cfg.o.concat([OTRO]).map(o=>`<option value="${esc(o)}"${ln.o===o?' selected':''}>${esc(o)}</option>`).join('')}</select></label>`:'')+
+      (cfg.o&&ln.o===OTRO?`<label class="f"><span class="l">Especifica cuál *</span><input type="text" data-sl="${id}|x" value="${esc(ln.x)}"></label>`:'')+
+      (cfg.z?`<label class="f"><span class="l">Tamaño ${q.modo==='varios'?'*':'(opcional)'}</span><input type="text" data-sl="${id}|z" value="${esc(ln.z)}" placeholder="${esc(cfg.z)}"></label>`:'')+
+      (cfg.e?`<label class="f"><span class="l">${esc(cfg.e)}${cfg.er?' *':''}</span><input type="text" data-sl="${id}|e" value="${esc(ln.e)}"></label>`:'')+
+      `<label class="f"><span class="l">Cantidad *</span><input type="number" inputmode="decimal" step="0.01" min="0" data-sl="${id}|cant" value="${esc(ln.cant)}" placeholder="0"></label>`+
+      `<label class="f"><span class="l">Unidad *</span><input type="text" list="unitList" data-sl="${id}|unid" value="${esc(ln.unid)}" placeholder="unid, kg, paquete..."></label>`+
+      `</div>${q.lines.length>1?`<button class="btn ghost sbtn" type="button" data-sdel="${id}" style="margin-top:6px">Quitar esta línea</button>`:''}</div>`;
+  }).join('');
+  if(canMulti)h+=`<button class="btn sec sbtn" type="button" data-sadd="${key}">+ Agregar ${cfg.o?'otro tipo':'otro tamaño'}</button>`;
+  box.innerHTML=h;
 }
-function fmtStockQty(key){
-  const q=getStockQty(key),cant=(q.cant||'').toString().trim(),unid=(q.unid||'').toString().trim();
-  if(!cant&&!unid)return'';
-  if(cant&&unid)return`${cant} ${unid}`;
-  return cant||unid;
+function lineDesc(cfg,ln){
+  const head=[ln.o===OTRO?(ln.x||'').trim():ln.o,(cfg.z&&(ln.z||'').trim())?'tamaño '+ln.z.trim():'',(cfg.e&&(ln.e||'').trim())?ln.e.trim():''].filter(Boolean);
+  const qty=[ln.cant,(ln.unid||'').trim()].filter(x=>String(x).trim()!=='').join(' ');
+  return (head.length?head.join(' · ')+' — ':'')+(qty||'cantidad no especificada');
 }
+function stockEntry(key,b,sub){
+  const it=sItem(key),cfg=it[2]||{},q=getSQ(key);
+  const tag=cfg.z?(q.modo==='varios'?' [varios tamaños]':' [1 solo tamaño]'):'';
+  const ds=q.lines.map(l=>lineDesc(cfg,l));
+  return ds.length===1?`${b}${it[0]}${tag}: ${ds[0]}`:`${b}${it[0]}${tag}:\n`+ds.map(d=>sub+d).join('\n');
+}
+function stockKeysOn(){const k=[];STOCK.forEach((c,ci)=>c.items.forEach((it,ii)=>{const key=ci+'_'+ii;if(S.stock[key])k.push(key)}));return k}
 function readPhoto(file,cb){
   const reader=new FileReader();
   reader.onload=ev=>{
     const img=new Image();
     img.onload=()=>{
-      let w=img.width,h=img.height;const maxW=900;
+      let w=img.width,h=img.height;const maxW=800;
       if(w>maxW){h=Math.round(h*maxW/w);w=maxW}
       const c=document.createElement('canvas');c.width=w;c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
-      cb(c.toDataURL('image/jpeg',0.72));
+      cb(c.toDataURL('image/jpeg',0.7));
     };
     img.src=ev.target.result;
   };
@@ -426,10 +493,7 @@ function buildStock(){
           <div class="schk" data-chk="${key}">✓</div>
           <div class="sname">${esc(it[0])}<div class="smin">${esc(it[1])}</div></div>
         </div>
-        <div class="sqty"><div class="qrow">
-          <input type="number" inputmode="decimal" step="0.01" min="0" data-sqcant="${key}" placeholder="Cant.">
-          <input type="text" list="unitList" data-squnid="${key}" placeholder="Unidad (kg, L, unid, paquete...)">
-        </div></div>
+        <div class="sqty"></div>
       </div>`}).join('')}
     </div>`).join('');
 }
@@ -523,6 +587,7 @@ function renderLimpTasks(){
       <div class="row"><div class="q">${esc(t)}</div>
       <div class="seg"><button type="button" data-v="si">Sí</button><button type="button" data-v="no">No</button></div></div>
       <input class="note" type="text" data-lm="${esc(t)}" value="${esc(S.limp.motivo[t]||'')}" placeholder="¿Por qué no? (obligatorio)">
+      <div class="tfoto"></div>
     </div>`).join('');
   $$('.item[data-lk]').forEach(paintLimpItem);
 }
@@ -531,17 +596,13 @@ function paintLimpItem(el){
   const n=$('.note',el);
   el.classList.toggle('miss',false);
   n.classList.toggle('miss',showMiss&&v==='no'&&!(S.limp.motivo[k]||'').trim());
+  const tf=$('.tfoto',el),f=(S.limp.fotos||{})[k]||'';
+  tf.classList.toggle('miss',showMiss&&v==='si'&&!f);
+  tf.innerHTML=v==='si'?`<span class="tl">📷 Foto de "${esc(k)}" (obligatoria)</span>`+(f?`<img src="${f}" alt="Evidencia">`:'')+
+    `<label class="btn sec filebtn sbtn">${f?'Cambiar foto':'📷 Subir foto'}<input type="file" accept="image/*" capture="environment" data-limpfoto="${esc(k)}"></label>`+
+    (f?` <button class="btn ghost sbtn" type="button" data-limpdel="${esc(k)}">Quitar</button>`:''):'';
 }
-function renderLimpFoto(){
-  const box=$('#limpFotoBox');
-  const anyOk=Object.values(S.limp.estado).some(v=>v==='si');
-  if(!anyOk){box.style.display='none';box.innerHTML='';return}
-  box.style.display='block';
-  box.innerHTML = `<span class="l" style="display:block;font-size:12px;font-weight:700;color:var(--mut);margin-bottom:6px">Foto de evidencia de la limpieza realizada</span>`+
-    (S.limp.foto?`<img src="${S.limp.foto}" style="display:block;max-width:180px;max-height:180px;border-radius:10px;border:1px solid var(--line);margin-bottom:7px;object-fit:cover">`:'')+
-    `<label class="btn sec filebtn">${S.limp.foto?'Cambiar foto':'📷 Subir foto'}<input type="file" accept="image/*" capture="environment" data-limpfoto="1"></label>`+
-    (S.limp.foto?` <button class="btn ghost" type="button" id="limpFotoDel">Quitar foto</button>`:'');
-}
+function renderLimpFoto(){}
 function renderCalTable(){
   const box=$('#calBox');
   let html='<table class="caltable"><tr><th>Puesto</th>'+DIAS.map(d=>`<th>${d}</th>`).join('')+'</tr>';
@@ -618,10 +679,9 @@ function restore(){
   renderInc();renderErr();renderNec();
   buildLimpieza();
   $$('.srow').forEach(r=>{
-    r.classList.toggle('on',!!S.stock[r.dataset.key]);
-    const q=getStockQty(r.dataset.key);
-    const qc=r.querySelector('[data-sqcant]');if(qc)qc.value=q.cant||'';
-    const qu=r.querySelector('[data-squnid]');if(qu)qu.value=q.unid||'';
+    const on=!!S.stock[r.dataset.key];
+    r.classList.toggle('on',on);
+    if(on)renderSQ(r.dataset.key);
   });
   redrawFirma();
   updateAll();
@@ -657,12 +717,16 @@ document.addEventListener('click',e=>{
   if(chk){
     const key=chk.dataset.chk,row=chk.closest('.srow');
     S.stock[key]=!S.stock[key];row.classList.toggle('on',S.stock[key]);save();updateAll();
-    if(S.stock[key])setTimeout(()=>{const qi=row.querySelector('[data-sqcant]');if(qi)qi.focus()},50);
+    if(S.stock[key]){renderSQ(key);setTimeout(()=>{const qi=row.querySelector('[data-sl]');if(qi)qi.focus()},50)}
     return;
   }
   const fc=e.target.closest('.fchip');
   if(fc){$$('.fchip').forEach(x=>x.classList.remove('on'));fc.classList.add('on');filterStock();return}
   const t=e.target.closest('button');if(!t)return;
+  if(t.dataset.smodo){const[k,m]=t.dataset.smodo.split('|'),q=getSQ(k);q.modo=m;if(m==='uno')q.lines=q.lines.slice(0,1);save();renderSQ(k);return}
+  if(t.dataset.sadd){getSQ(t.dataset.sadd).lines.push(newLine());save();renderSQ(t.dataset.sadd);return}
+  if(t.dataset.sdel){const[k,i]=t.dataset.sdel.split('|'),q=getSQ(k);q.lines.splice(+i,1);if(!q.lines.length)q.lines.push(newLine());save();renderSQ(k);return}
+  if(t.dataset.limpdel){const k=t.dataset.limpdel;S.limp.fotos[k]='';save();$$('.item[data-lk]').filter(el=>el.dataset.lk===k).forEach(paintLimpItem);return}
   if(t.closest('.seg')){
     const it=t.closest('.item');
     if(it.dataset.lk!==undefined){
@@ -683,7 +747,6 @@ document.addEventListener('click',e=>{
   if(t.id==='addNec'){S.necesidades.push({id:'n'+Date.now()+Math.random().toString(36).slice(2,5),area:'',detalle:''});save();renderNec();updateAll();return}
   if(t.dataset.ndel){S.necesidades=S.necesidades.filter(x=>x.id!==t.dataset.ndel);save();renderNec();updateAll();return}
   if(t.id==='apFotoDel'){S.apertura.foto='';save();renderApFoto();return}
-  if(t.id==='limpFotoDel'){S.limp.foto='';save();renderLimpFoto();return}
   if(t.id==='toggleCal'){const cb=$('#calBox');const show=cb.style.display==='none';cb.style.display=show?'block':'none';t.textContent=show?'Ocultar calendario':'Ver calendario completo';return}
   if(t.id==='firmaClear'){clearFirma();return}
 });
@@ -696,8 +759,10 @@ document.addEventListener('input',e=>{
   }
   else if(t.id==='apMonto'){S.apertura.monto=t.value;updateApHint();renderApFoto()}
   else if(t.dataset.lm!==undefined){S.limp.motivo[t.dataset.lm]=t.value;paintLimpItem(t.closest('.item'))}
-  else if(t.dataset.sqcant!==undefined){setStockQty(t.dataset.sqcant,'cant',t.value)}
-  else if(t.dataset.squnid!==undefined){setStockQty(t.dataset.squnid,'unid',t.value)}
+  else if(t.dataset.sl!==undefined){
+    const[k,i,f]=t.dataset.sl.split('|'),ln=getSQ(k).lines[+i];
+    if(ln){ln[f]=t.value;if(t.tagName==='SELECT'){save();renderSQ(k);return}}
+  }
   else if(t.dataset.idesc!==undefined){const x=S.incidencias.find(y=>y.id===t.dataset.idesc);if(x)x.desc=t.value}
   else if(t.dataset.edesc!==undefined){const x=S.errores.find(y=>y.id===t.dataset.edesc);if(x)x.desc=t.value}
   else if(t.dataset.eaccion!==undefined){const x=S.errores.find(y=>y.id===t.dataset.eaccion);if(x)x.accion=t.value}
@@ -721,7 +786,7 @@ document.addEventListener('change',e=>{
   const file=t.files&&t.files[0];if(!file)return;
   readPhoto(file,dataUrl=>{
     if(kind==='ap'){S.apertura.foto=dataUrl;save();renderApFoto()}
-    else if(kind==='limp'){S.limp.foto=dataUrl;save();renderLimpFoto()}
+    else if(kind==='limp'){const k=t.dataset.limpfoto;S.limp.fotos[k]=dataUrl;save();$$('.item[data-lk]').filter(el=>el.dataset.lk===k).forEach(paintLimpItem)}
     else if(kind==='inc'){const x=S.incidencias.find(y=>y.id===t.dataset.ifoto);if(x){x.foto=dataUrl;save();renderInc();updateAll()}}
     else if(kind==='err'){const x=S.errores.find(y=>y.id===t.dataset.efoto);if(x){x.foto=dataUrl;save();renderErr();updateAll()}}
   });
@@ -746,7 +811,7 @@ function sectionLimpiezaTexto(){
   const tasks=LIMPIEZA[S.limp.role][di];
   const marcadas=tasks.filter(t=>S.limp.estado[t]);
   if(!marcadas.length)return'';
-  const lines=marcadas.map(t=>{const v=S.limp.estado[t];return v==='si'?`✔ ${t}`:`✘ ${t} (motivo: ${S.limp.motivo[t]||'sin motivo'})`});
+  const lines=marcadas.map(t=>{const v=S.limp.estado[t];return v==='si'?`✔ ${t}${(S.limp.fotos||{})[t]?' (con foto)':''}`:`✘ ${t} (motivo: ${S.limp.motivo[t]||'sin motivo'})`});
   return `${S.limp.role} — ${DIAS[di]}\n`+lines.join('\n');
 }
 function sectionNecesidades(){
@@ -758,13 +823,15 @@ function sectionStock(){
   const cats=[];
   STOCK.forEach((c,ci)=>{
     const items=[];
-    c.items.forEach((it,ii)=>{
-      const key=ci+'_'+ii;
-      if(S.stock[key]){const q=fmtStockQty(key);items.push(`  • ${it[0]}${q?': '+q:' (cantidad no especificada)'}`)}
-    });
+    c.items.forEach((it,ii)=>{const key=ci+'_'+ii;if(S.stock[key])items.push(stockEntry(key,'  • ','      – '))});
     if(items.length)cats.push(`${c.cat}\n`+items.join('\n'));
   });
   return cats.join('\n\n');
+}
+function limpFotosParaSheet(){
+  const di=dayIdx(S.m.fecha);
+  if(di==null||!LIMPIEZA[S.limp.role])return[];
+  return LIMPIEZA[S.limp.role][di].filter(t=>S.limp.estado[t]==='si'&&(S.limp.fotos||{})[t]).map(t=>({tarea:t,foto:S.limp.fotos[t]}));
 }
 function report(){
   const m=S.m,L=[];
@@ -792,15 +859,14 @@ function report(){
     const marcadas=tasks.filter(t=>S.limp.estado[t]);
     if(marcadas.length){
       L.push('','*Limpieza — '+S.limp.role+' ('+DIAS[di]+')*');
-      marcadas.forEach(t=>{const v=S.limp.estado[t];L.push(v==='si'?`✔ ${t}`:`✘ ${t} — ${S.limp.motivo[t]||'sin motivo'}`)});
-      if(S.limp.foto)L.push('(con foto de evidencia)');
+      marcadas.forEach(t=>{const v=S.limp.estado[t];L.push(v==='si'?`✔ ${t}${(S.limp.fotos||{})[t]?' (con foto)':''}`:`✘ ${t} — ${S.limp.motivo[t]||'sin motivo'}`)});
     }
   }
   if(S.necesidades.length){
     L.push('','*Necesidades*');
     S.necesidades.forEach(x=>{if((x.area||'').trim()||(x.detalle||'').trim())L.push(`• ${x.area||'Área no especificada'}: ${x.detalle||'—'}`)});
   }
-  const req=[];STOCK.forEach((c,ci)=>c.items.forEach((it,ii)=>{const key=ci+'_'+ii;if(S.stock[key]){const q=fmtStockQty(key);req.push(`${it[0]}: ${q||'cantidad no especificada'}`)}}));
+  const req=stockKeysOn().map(key=>stockEntry(key,'','   – '));
   if(req.length){L.push('','*Requerimiento de stock*');req.forEach(r=>L.push('• '+r))}
 
   L.push('','Registrado por: '+(m.nombre||'—'));
@@ -828,6 +894,21 @@ function validate(){
     LIMPIEZA[S.limp.role][di].forEach(t=>{if(S.limp.estado[t]==='no'&&!(S.limp.motivo[t]||'').trim())lm++});
   }
   if(lm)I.push(`${lm} tarea(s) de limpieza marcadas "No" necesitan un motivo.`);
+  if(di!=null&&LIMPIEZA[S.limp.role]){
+    LIMPIEZA[S.limp.role][di].forEach(t=>{if(S.limp.estado[t]==='si'&&!(S.limp.fotos||{})[t])I.push(`Limpieza "${t}": falta la foto de evidencia.`)});
+  }
+  stockKeysOn().forEach(key=>{
+    const it=sItem(key),cfg=it[2]||{},q=getSQ(key);
+    q.lines.forEach((ln,i)=>{
+      const w=`Stock "${it[0]}"${q.lines.length>1?' (línea '+(i+1)+')':''}`;
+      if(cfg.o&&!ln.o)I.push(`${w}: elige ${(cfg.ol||'una opción').replace(/[¿?]/g,'').toLowerCase()}.`);
+      if(cfg.o&&ln.o===OTRO&&!(ln.x||'').trim())I.push(`${w}: especifica cuál es.`);
+      if(cfg.z&&q.modo==='varios'&&!(ln.z||'').trim())I.push(`${w}: falta el tamaño.`);
+      if(cfg.er&&!(ln.e||'').trim())I.push(`${w}: falta "${cfg.e}".`);
+      if(!(num(ln.cant)>0))I.push(`${w}: falta la cantidad.`);
+      if(!(ln.unid||'').trim())I.push(`${w}: falta la unidad.`);
+    });
+  });
   if(!S.firma)I.push('Debes firmar en la sección "Firma de conformidad" (al final) antes de enviar el reporte.');
   return I;
 }
@@ -861,7 +942,7 @@ async function enviarASheet(auto){
     apertura:{texto:sectionAperturaTexto(),foto:S.apertura.foto||''},
     incidencias:incidenciasParaSheet(),
     errores:erroresParaSheet(),
-    limpieza:{texto:sectionLimpiezaTexto(),foto:S.limp.foto||''},
+    limpieza:{texto:sectionLimpiezaTexto(),foto:(limpFotosParaSheet()[0]||{}).foto||'',fotos:limpFotosParaSheet()},
     necesidades:sectionNecesidades(),
     stock:sectionStock(),
     firma:S.firma||''
